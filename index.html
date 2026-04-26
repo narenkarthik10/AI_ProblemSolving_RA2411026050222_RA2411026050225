@@ -3,117 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPS Route Finder (A* Search) - Visual Edition</title>
+    <title>Smart Navigation System | A* Algorithm</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1e1e24; /* Dark theme background */
-            color: #ffffff;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        h2 { color: #a1b0ff; margin-bottom: 10px; }
-        
-        /* The Graph Container */
-        #mynetwork {
-            width: 800px;
-            height: 500px;
-            background-color: #2b2b36;
-            border: 2px solid #3f3f4e;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-            margin-bottom: 20px;
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --danger: #ef4444;
         }
 
-        /* Control Panel */
-        .controls {
-            width: 800px;
-            background: #2b2b36;
-            padding: 20px;
-            border-radius: 12px;
-            box-sizing: border-box;
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 30px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            align-items: center;
-            justify-content: space-between;
+            justify-content: center;
         }
-        .form-group { display: flex; align-items: center; gap: 10px; }
-        label { font-weight: bold; color: #b4b4cc; }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 350px 800px;
+            gap: 25px;
+            max-width: 1200px;
+        }
+
+        /* Styling Cards */
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        h2 { margin-top: 0; font-size: 22px; color: var(--text-main); display: flex; align-items: center; gap: 10px; }
+        p.subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 25px; line-height: 1.5; }
+
+        /* Form Controls */
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
         select {
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #4f4f66;
-            background: #1e1e24;
-            color: white;
-            font-size: 16px;
+            width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155;
+            background: #0f172a; color: white; font-family: 'Poppins', sans-serif;
+            font-size: 15px; outline: none; transition: border 0.3s;
         }
-        button {
-            padding: 10px 20px;
-            background-color: #5a67d8;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
+        select:focus { border-color: var(--accent); }
+
+        /* Main Button with Pulse Animation */
+        .btn-primary {
+            width: 100%; padding: 14px; background: var(--accent); color: white;
+            border: none; border-radius: 8px; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            display: flex; justify-content: center; align-items: center; gap: 10px;
         }
-        button:hover { background-color: #4c51bf; }
-        
-        .result {
-            width: 100%;
-            margin-top: 15px;
-            padding: 15px;
-            background-color: #1e1e24;
-            border: 1px solid #4f4f66;
-            border-radius: 6px;
-            font-size: 16px;
-            line-height: 1.5;
-            display: none;
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); }
+        .btn-primary:active { transform: translateY(0); }
+
+        /* Custom Map Editor Tools */
+        .toolbar { display: flex; gap: 10px; margin-bottom: 15px; justify-content: center;}
+        .tool-btn {
+            background: #334155; color: white; border: none; padding: 10px 15px;
+            border-radius: 8px; cursor: pointer; font-size: 13px; font-family: 'Poppins', sans-serif;
+            transition: all 0.2s; display: flex; align-items: center; gap: 6px;
         }
-        .instructions {
-            width: 800px;
-            text-align: center;
-            color: #8b8b9f;
-            margin-bottom: 10px;
-            font-size: 14px;
+        .tool-btn:hover { background: #475569; }
+        .tool-btn.danger:hover { background: var(--danger); }
+
+        /* Map Canvas */
+        #mynetwork {
+            width: 100%; height: 500px; background: #0f172a; border-radius: 12px;
+            border: 1px solid #334155; outline: none;
         }
+
+        /* Results Box */
+        .result-box {
+            margin-top: 25px; padding: 20px; background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid var(--success); border-radius: 8px;
+            display: none; font-size: 15px; animation: slideUp 0.4s ease-out;
+        }
+        .result-box span { color: var(--success); font-weight: 600; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-    <h2>Interactive GPS Route Finder</h2>
-    <div class="instructions">Click "Edit" on the graph to add/remove locations (nodes) and roads (edges).</div>
-    
-    <div id="mynetwork"></div>
+    <div class="dashboard">
+        
+        <div class="card">
+            <h2><i class="fa-solid fa-route" style="color: var(--accent);"></i> Route Finder</h2>
+            <p class="subtitle">Select your start and end points. The A* algorithm will calculate the most optimal path.</p>
 
-    <div class="controls">
-        <div class="form-group">
-            <label for="start">Start Location:</label>
-            <select id="start"></select>
+            <div class="form-group">
+                <label>Start Location</label>
+                <select id="start"></select>
+            </div>
+            <div class="form-group">
+                <label>Destination</label>
+                <select id="goal"></select>
+            </div>
+
+            <button class="btn-primary" onclick="findRoute()">
+                <i class="fa-solid fa-location-arrow"></i> Calculate Optimal Route
+            </button>
+
+            <div id="output" class="result-box"></div>
         </div>
-        <div class="form-group">
-            <label for="goal">Destination:</label>
-            <select id="goal"></select>
+
+        <div class="card">
+            
+            <div class="toolbar">
+                <button class="tool-btn" onclick="addNode()"><i class="fa-solid fa-plus-circle"></i> Add Node</button>
+                <button class="tool-btn" onclick="addEdge()"><i class="fa-solid fa-project-diagram"></i> Draw Route</button>
+                <button class="tool-btn danger" onclick="deleteSelected()"><i class="fa-solid fa-trash"></i> Delete Selected</button>
+            </div>
+
+            <div id="mynetwork"></div>
         </div>
-        <button onclick="findRoute()">Find Optimal Route</button>
-        <div id="output" class="result"></div>
+
     </div>
 
     <script>
-        // 1. Initial Map Data (Same as Problem 11)
+        // 1. Initial Map Data
         const initialNodes = [
             { id: 'A', label: 'A\n(h=7)', h: 7, x: -200, y: 0 },
-            { id: 'B', label: 'B\n(h=6)', h: 6, x: 0, y: -100 },
-            { id: 'C', label: 'C\n(h=4)', h: 4, x: 0, y: 100 },
-            { id: 'D', label: 'D\n(h=2)', h: 2, x: 200, y: 0 },
-            { id: 'E', label: 'E\n(h=1)', h: 1, x: 300, y: -100 },
-            { id: 'F', label: 'F\n(h=0)', h: 0, x: 400, y: 0 }
+            { id: 'B', label: 'B\n(h=6)', h: 6, x: -50, y: -120 },
+            { id: 'C', label: 'C\n(h=4)', h: 4, x: -50, y: 120 },
+            { id: 'D', label: 'D\n(h=2)', h: 2, x: 150, y: 0 },
+            { id: 'E', label: 'E\n(h=1)', h: 1, x: 250, y: -120 },
+            { id: 'F', label: 'F\n(h=0)', h: 0, x: 350, y: 0 }
         ];
 
         const initialEdges = [
@@ -126,100 +158,92 @@
             { id: 'E-F', from: 'E', to: 'F', label: '1', cost: 1 }
         ];
 
-        // 2. Setup Vis-Network Datasets
         let nodes = new vis.DataSet(initialNodes);
         let edges = new vis.DataSet(initialEdges);
-
-        // 3. Graph Styling & Options
         let container = document.getElementById('mynetwork');
-        let data = { nodes: nodes, edges: edges };
+        
         let options = {
             nodes: {
-                shape: 'circle',
-                color: { background: '#9ae6b4', border: '#ffffff', highlight: '#fbd38d' },
-                font: { color: '#000000', face: 'Arial', bold: true },
-                size: 30,
-                borderWidth: 2
+                shape: 'dot', size: 20,
+                color: { background: '#3b82f6', border: '#1e293b', highlight: '#10b981' },
+                font: { color: '#ffffff', face: 'Poppins', size: 14, multi: true },
+                borderWidth: 3
             },
             edges: {
-                color: { color: '#718096', highlight: '#63b3ed' },
-                font: { color: '#ffffff', size: 16, strokeWidth: 0 },
-                width: 3,
-                arrows: { to: { enabled: true, scaleFactor: 0.5 } } // Directed graph
+                color: { color: '#64748b', highlight: '#10b981' },
+                font: { color: '#cbd5e1', size: 14, align: 'horizontal', background: '#0f172a' },
+                width: 2, smooth: { type: 'continuous' },
+                arrows: { to: { enabled: true, scaleFactor: 0.6 } }
             },
-            physics: false, // Turn off bouncy physics for a stable map
+            interaction: { hover: true, tooltipDelay: 200 },
+            physics: false,
             manipulation: {
-                enabled: true, // ENABLES THE EDIT GUI
-                addNode: function (nodeData, callback) {
-                    let name = prompt("Enter Location Name (e.g., G):", "G");
-                    if (!name) return;
-                    let h = prompt("Enter Heuristic (estimated distance to goal):", "0");
-                    nodeData.id = name;
-                    nodeData.label = `${name}\n(h=${h})`;
-                    nodeData.h = parseInt(h);
-                    callback(nodeData);
+                enabled: false, // Turn off ugly default UI, we use custom buttons
+                addNode: function (data, callback) {
+                    let name = prompt("Enter Node Name (e.g., G):");
+                    if (!name) return callback(null);
+                    let h = prompt(`Enter estimated distance to goal for ${name}:`, "0");
+                    data.id = name;
+                    data.label = `<b>${name}</b>\n(h=${h})`;
+                    data.h = parseInt(h) || 0;
+                    callback(data);
                     updateDropdowns();
                 },
-                addEdge: function (edgeData, callback) {
-                    if (edgeData.from === edgeData.to) return;
-                    let cost = prompt(`Enter distance cost from ${edgeData.from} to ${edgeData.to}:`, "1");
-                    if (!cost) return;
-                    edgeData.label = cost;
-                    edgeData.cost = parseInt(cost);
-                    edgeData.id = `${edgeData.from}-${edgeData.to}`;
-                    callback(edgeData);
+                addEdge: function (data, callback) {
+                    if (data.from === data.to) return callback(null);
+                    let cost = prompt(`Enter travel cost from ${data.from} to ${data.to}:`, "1");
+                    if (!cost) return callback(null);
+                    data.label = cost;
+                    data.cost = parseInt(cost) || 1;
+                    data.id = `${data.from}-${data.to}`;
+                    callback(data);
                 }
             }
         };
 
-        let network = new vis.Network(container, data, options);
+        let network = new vis.Network(container, { nodes, edges }, options);
 
-        // 4. Keep Dropdowns Updated
+        // Custom Toolbar Functions
+        function addNode() { network.addNodeMode(); }
+        function addEdge() { network.addEdgeMode(); }
+        function deleteSelected() { network.deleteSelected(); updateDropdowns(); }
+
+        // Dropdown Auto-updater
         function updateDropdowns() {
             let startSelect = document.getElementById("start");
             let goalSelect = document.getElementById("goal");
-            startSelect.innerHTML = "";
-            goalSelect.innerHTML = "";
-            
+            startSelect.innerHTML = ""; goalSelect.innerHTML = "";
             nodes.get().forEach(n => {
                 startSelect.add(new Option(n.id, n.id));
                 goalSelect.add(new Option(n.id, n.id));
             });
-            // Set defaults if they exist
             if (nodes.get('A')) startSelect.value = 'A';
             if (nodes.get('F')) goalSelect.value = 'F';
         }
         updateDropdowns();
 
-        // 5. A* Search Logic (Reads dynamically from the visual graph)
+        // A* Search Logic
         function findRoute() {
             let start = document.getElementById("start").value;
             let goal = document.getElementById("goal").value;
             
-            // Build graph mapping from current vis.js data
-            let g = {};
-            let hDict = {};
-            
-            nodes.get().forEach(n => {
-                g[n.id] = {};
-                hDict[n.id] = n.h || 0;
-            });
-            
-            edges.get().forEach(e => {
-                if(g[e.from]) g[e.from][e.to] = e.cost;
-            });
+            let g = {}; let hDict = {};
+            nodes.get().forEach(n => { g[n.id] = {}; hDict[n.id] = n.h || 0; });
+            edges.get().forEach(e => { if(g[e.from]) g[e.from][e.to] = e.cost; });
 
-            // Reset visual highlights
-            let resetEdges = edges.get().map(e => ({ id: e.id, color: { color: '#718096' }, width: 3 }));
+            // Reset map styles
+            let resetEdges = edges.get().map(e => ({ id: e.id, color: { color: '#64748b' }, width: 2 }));
             edges.update(resetEdges);
-            let resetNodes = nodes.get().map(n => ({ id: n.id, color: { background: '#9ae6b4' } }));
+            let resetNodes = nodes.get().map(n => ({ id: n.id, color: { background: '#3b82f6' } }));
             nodes.update(resetNodes);
 
-            // A* Algorithm
             let openSet = [{ node: start, cost: 0, f: hDict[start], path: [start] }];
             let explored = [];
             let gCosts = { [start]: 0 };
             let result = null;
+
+            let outputDiv = document.getElementById("output");
+            outputDiv.style.display = "none"; // Hide to trigger re-animation
 
             while (openSet.length > 0) {
                 openSet.sort((a, b) => a.f - b.f);
@@ -243,34 +267,27 @@
                 }
             }
 
-            // Output and Highlight Results
-            let outputDiv = document.getElementById("output");
-            outputDiv.style.display = "block";
-
-            if (result) {
-                outputDiv.innerHTML = `<strong>Optimal Path (A*):</strong> ${result.path.join(' &rarr; ')} <br><br>
-                                       <strong>Total Travel Cost:</strong> ${result.cost} <br><br>
-                                       <strong>Nodes Explored:</strong> ${result.explored.join(', ')}`;
-                
-                // Highlight the path on the graph
-                let highlightEdges = [];
-                for (let i = 0; i < result.path.length - 1; i++) {
-                    let from = result.path[i];
-                    let to = result.path[i+1];
-                    // Find edge ID (handles potential reverse edges if added by user)
-                    let edge = edges.get().find(e => e.from === from && e.to === to);
-                    if(edge) {
-                        highlightEdges.push({ id: edge.id, color: { color: '#63b3ed' }, width: 6 });
+            setTimeout(() => {
+                outputDiv.style.display = "block";
+                if (result) {
+                    outputDiv.innerHTML = `Optimal Path: <span>${result.path.join(' &rarr; ')}</span> <br><br>
+                                           Total Cost: <span>${result.cost}</span> <br><br>
+                                           Nodes Explored: <span>${result.explored.join(', ')}</span>`;
+                    
+                    let highlightEdges = [];
+                    for (let i = 0; i < result.path.length - 1; i++) {
+                        let from = result.path[i], to = result.path[i+1];
+                        let edge = edges.get().find(e => e.from === from && e.to === to);
+                        if(edge) highlightEdges.push({ id: edge.id, color: { color: '#10b981' }, width: 5 });
                     }
+                    edges.update(highlightEdges);
+                    nodes.update({ id: goal, color: { background: '#10b981' } });
+                    nodes.update({ id: start, color: { background: '#f59e0b' } }); // Highlight start
+                } else {
+                    outputDiv.style.borderLeftColor = "var(--danger)";
+                    outputDiv.innerHTML = `<span style="color: var(--danger);">No valid route exists.</span>`;
                 }
-                edges.update(highlightEdges);
-
-                // Highlight the goal node
-                nodes.update({ id: goal, color: { background: '#f6ad55' } });
-
-            } else {
-                outputDiv.innerHTML = `<span style="color: #fc8181; font-weight: bold;">No valid path exists between these locations.</span>`;
-            }
+            }, 50); // slight delay to trigger CSS animation
         }
     </script>
 </body>
