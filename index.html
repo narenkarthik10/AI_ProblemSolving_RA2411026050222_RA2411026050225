@@ -11,7 +11,6 @@
     <style>
         :root {
             --bg-color: #0f172a;
-            --card-bg: #1e293b;
             --accent: #3b82f6;
             --accent-hover: #2563eb;
             --text-main: #f8fafc;
@@ -28,6 +27,18 @@
             padding: 30px;
             display: flex;
             justify-content: center;
+            overflow-x: hidden;
+        }
+
+        /* The Dynamic Background Canvas */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none; /* Clicks pass through */
         }
 
         .dashboard {
@@ -35,15 +46,18 @@
             grid-template-columns: 350px 800px;
             gap: 25px;
             max-width: 1200px;
+            z-index: 1; /* Keep above background */
         }
 
-        /* Styling Cards */
+        /* Glassmorphism Cards */
         .card {
-            background: var(--card-bg);
+            background: rgba(30, 41, 59, 0.7); /* Semi-transparent */
+            backdrop-filter: blur(12px); /* Glass blur effect */
+            -webkit-backdrop-filter: blur(12px);
             border-radius: 16px;
             padding: 25px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             animation: fadeIn 0.6s ease-out;
         }
 
@@ -55,12 +69,12 @@
         label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
         select {
             width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155;
-            background: #0f172a; color: white; font-family: 'Poppins', sans-serif;
+            background: rgba(15, 23, 42, 0.8); color: white; font-family: 'Poppins', sans-serif;
             font-size: 15px; outline: none; transition: border 0.3s;
         }
         select:focus { border-color: var(--accent); }
 
-        /* Main Button with Pulse Animation */
+        /* Main Button */
         .btn-primary {
             width: 100%; padding: 14px; background: var(--accent); color: white;
             border: none; border-radius: 8px; font-size: 16px; font-weight: 600;
@@ -69,29 +83,29 @@
             display: flex; justify-content: center; align-items: center; gap: 10px;
         }
         .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); }
-        .btn-primary:active { transform: translateY(0); }
 
         /* Custom Map Editor Tools */
         .toolbar { display: flex; gap: 10px; margin-bottom: 15px; justify-content: center;}
         .tool-btn {
-            background: #334155; color: white; border: none; padding: 10px 15px;
-            border-radius: 8px; cursor: pointer; font-size: 13px; font-family: 'Poppins', sans-serif;
-            transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+            background: rgba(51, 65, 85, 0.8); color: white; border: 1px solid rgba(255,255,255,0.1); 
+            padding: 10px 15px; border-radius: 8px; cursor: pointer; font-size: 13px; 
+            font-family: 'Poppins', sans-serif; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
         }
-        .tool-btn:hover { background: #475569; }
+        .tool-btn:hover { background: #475569; border-color: rgba(255,255,255,0.3); }
         .tool-btn.danger:hover { background: var(--danger); }
 
         /* Map Canvas */
         #mynetwork {
-            width: 100%; height: 500px; background: #0f172a; border-radius: 12px;
-            border: 1px solid #334155; outline: none;
+            width: 100%; height: 500px; background: rgba(15, 23, 42, 0.6); border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05); outline: none;
         }
 
         /* Results Box */
         .result-box {
-            margin-top: 25px; padding: 20px; background: rgba(16, 185, 129, 0.1);
+            margin-top: 25px; padding: 20px; background: rgba(16, 185, 129, 0.15);
             border-left: 4px solid var(--success); border-radius: 8px;
             display: none; font-size: 15px; animation: slideUp 0.4s ease-out;
+            backdrop-filter: blur(5px);
         }
         .result-box span { color: var(--success); font-weight: 600; }
 
@@ -102,8 +116,9 @@
 </head>
 <body>
 
+    <canvas id="bg-canvas"></canvas>
+
     <div class="dashboard">
-        
         <div class="card">
             <h2><i class="fa-solid fa-route" style="color: var(--accent);"></i> Route Finder</h2>
             <p class="subtitle">Select your start and end points. The A* algorithm will calculate the most optimal path.</p>
@@ -125,7 +140,6 @@
         </div>
 
         <div class="card">
-            
             <div class="toolbar">
                 <button class="tool-btn" onclick="addNode()"><i class="fa-solid fa-plus-circle"></i> Add Node</button>
                 <button class="tool-btn" onclick="addEdge()"><i class="fa-solid fa-project-diagram"></i> Draw Route</button>
@@ -134,11 +148,74 @@
 
             <div id="mynetwork"></div>
         </div>
-
     </div>
 
     <script>
-        // 1. Initial Map Data
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height, particles;
+        
+        function initBackground() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            particles = [];
+            
+            // Create particles
+            for(let i = 0; i < 70; i++) {
+                particles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    vx: (Math.random() - 0.5) * 0.8,
+                    vy: (Math.random() - 0.5) * 0.8,
+                    radius: Math.random() * 2 + 1
+                });
+            }
+        }
+
+        function animateBackground() {
+            ctx.clearRect(0, 0, width, height);
+            
+            for(let i = 0; i < particles.length; i++) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy;
+                
+                // Bounce off edges
+                if(p.x < 0 || p.x > width) p.vx *= -1;
+                if(p.y < 0 || p.y > height) p.vy *= -1;
+                
+                // Draw particle
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
+                ctx.fill();
+                
+                // Draw connecting lines
+                for(let j = i + 1; j < particles.length; j++) {
+                    let p2 = particles[j];
+                    let dx = p.x - p2.x;
+                    let dy = p.y - p2.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if(dist < 120) {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.strokeStyle = `rgba(59, 130, 246, ${0.15 - dist/800})`;
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animateBackground);
+        }
+
+        window.addEventListener('resize', initBackground);
+        initBackground();
+        animateBackground();
+    </script>
+
+    <script>
         const initialNodes = [
             { id: 'A', label: 'A\n(h=7)', h: 7, x: -200, y: 0 },
             { id: 'B', label: 'B\n(h=6)', h: 6, x: -50, y: -120 },
@@ -171,14 +248,14 @@
             },
             edges: {
                 color: { color: '#64748b', highlight: '#10b981' },
-                font: { color: '#cbd5e1', size: 14, align: 'horizontal', background: '#0f172a' },
+                font: { color: '#cbd5e1', size: 14, align: 'horizontal', background: 'transparent' },
                 width: 2, smooth: { type: 'continuous' },
                 arrows: { to: { enabled: true, scaleFactor: 0.6 } }
             },
             interaction: { hover: true, tooltipDelay: 200 },
             physics: false,
             manipulation: {
-                enabled: false, // Turn off ugly default UI, we use custom buttons
+                enabled: false,
                 addNode: function (data, callback) {
                     let name = prompt("Enter Node Name (e.g., G):");
                     if (!name) return callback(null);
@@ -203,12 +280,10 @@
 
         let network = new vis.Network(container, { nodes, edges }, options);
 
-        // Custom Toolbar Functions
         function addNode() { network.addNodeMode(); }
         function addEdge() { network.addEdgeMode(); }
         function deleteSelected() { network.deleteSelected(); updateDropdowns(); }
 
-        // Dropdown Auto-updater
         function updateDropdowns() {
             let startSelect = document.getElementById("start");
             let goalSelect = document.getElementById("goal");
@@ -222,7 +297,6 @@
         }
         updateDropdowns();
 
-        // A* Search Logic
         function findRoute() {
             let start = document.getElementById("start").value;
             let goal = document.getElementById("goal").value;
@@ -231,7 +305,6 @@
             nodes.get().forEach(n => { g[n.id] = {}; hDict[n.id] = n.h || 0; });
             edges.get().forEach(e => { if(g[e.from]) g[e.from][e.to] = e.cost; });
 
-            // Reset map styles
             let resetEdges = edges.get().map(e => ({ id: e.id, color: { color: '#64748b' }, width: 2 }));
             edges.update(resetEdges);
             let resetNodes = nodes.get().map(n => ({ id: n.id, color: { background: '#3b82f6' } }));
@@ -241,21 +314,17 @@
             let explored = [];
             let gCosts = { [start]: 0 };
             let result = null;
-
             let outputDiv = document.getElementById("output");
-            outputDiv.style.display = "none"; // Hide to trigger re-animation
+            outputDiv.style.display = "none";
 
             while (openSet.length > 0) {
                 openSet.sort((a, b) => a.f - b.f);
                 let current = openSet.shift();
-
                 if (!explored.includes(current.node)) explored.push(current.node);
-
                 if (current.node === goal) {
                     result = { path: current.path, cost: current.cost, explored: explored };
                     break;
                 }
-
                 let neighbors = g[current.node] || {};
                 for (let neighbor in neighbors) {
                     let tentativeGCost = current.cost + neighbors[neighbor];
@@ -282,12 +351,12 @@
                     }
                     edges.update(highlightEdges);
                     nodes.update({ id: goal, color: { background: '#10b981' } });
-                    nodes.update({ id: start, color: { background: '#f59e0b' } }); // Highlight start
+                    nodes.update({ id: start, color: { background: '#f59e0b' } });
                 } else {
                     outputDiv.style.borderLeftColor = "var(--danger)";
                     outputDiv.innerHTML = `<span style="color: var(--danger);">No valid route exists.</span>`;
                 }
-            }, 50); // slight delay to trigger CSS animation
+            }, 50);
         }
     </script>
 </body>
