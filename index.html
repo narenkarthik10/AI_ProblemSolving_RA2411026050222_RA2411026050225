@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS City Route Finder</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f9; }
+        .container { max-width: 500px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #34495e; }
+        select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #bdc3c7; font-size: 16px; }
+        button { width: 100%; padding: 12px; background-color: #27ae60; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background-color: #2ecc71; }
+        .result { margin-top: 20px; padding: 15px; background-color: #ecf0f1; border-radius: 6px; font-size: 16px; line-height: 1.5; color: #2c3e50;}
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>GPS Route Finder (A* Search)</h2>
+        
+        <div class="form-group">
+            <label for="start">Start Location:</label>
+            <select id="start">
+                <option value="A">A</option><option value="B">B</option><option value="C">C</option>
+                <option value="D">D</option><option value="E">E</option><option value="F">F</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="goal">Destination:</label>
+            <select id="goal">
+                <option value="A">A</option><option value="B">B</option><option value="C">C</option>
+                <option value="D">D</option><option value="E">E</option><option value="F" selected>F</option>
+            </select>
+        </div>
+
+        <button onclick="findRoute()">Find Optimal Route</button>
+
+        <div id="output" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Graph and Heuristics ported from the Python assignment logic
+        const graph = {
+            'A': {'B': 1, 'C': 4},
+            'B': {'D': 2, 'E': 5},
+            'C': {'D': 1},
+            'D': {'F': 3},
+            'E': {'F': 1},
+            'F': {}
+        };
+        const heuristics = {'A': 7, 'B': 6, 'C': 4, 'D': 2, 'E': 1, 'F': 0};
+
+        function aStarSearch(start, goal) {
+            let openSet = [{ node: start, cost: 0, f: heuristics[start], path: [start] }];
+            let explored = [];
+            let gCosts = { [start]: 0 };
+
+            while (openSet.length > 0) {
+                // Sort by lowest f-cost
+                openSet.sort((a, b) => a.f - b.f);
+                let current = openSet.shift();
+
+                if (!explored.includes(current.node)) explored.push(current.node);
+
+                if (current.node === goal) {
+                    return { path: current.path, cost: current.cost, explored: explored };
+                }
+
+                let neighbors = graph[current.node] || {};
+                for (let neighbor in neighbors) {
+                    let tentativeGCost = current.cost + neighbors[neighbor];
+                    if (!(neighbor in gCosts) || tentativeGCost < gCosts[neighbor]) {
+                        gCosts[neighbor] = tentativeGCost;
+                        let fCost = tentativeGCost + heuristics[neighbor];
+                        openSet.push({ node: neighbor, cost: tentativeGCost, f: fCost, path: [...current.path, neighbor] });
+                    }
+                }
+            }
+            return null;
+        }
+
+        function findRoute() {
+            let start = document.getElementById("start").value;
+            let goal = document.getElementById("goal").value;
+            let result = aStarSearch(start, goal);
+            let outputDiv = document.getElementById("output");
+            
+            outputDiv.style.display = "block";
+            if (result) {
+                outputDiv.innerHTML = `<strong>Optimal Path (A*):</strong> ${result.path.join(' &rarr; ')} <br><br>
+                                       <strong>Total Travel Cost:</strong> ${result.cost} <br><br>
+                                       <strong>Nodes Explored:</strong> ${result.explored.join(', ')}`;
+            } else {
+                outputDiv.innerHTML = `<span style="color: red; font-weight: bold;">No valid path exists between these locations.</span>`;
+            }
+        }
+    </script>
+</body>
+</html>
